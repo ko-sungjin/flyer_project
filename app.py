@@ -149,7 +149,7 @@ def create_display_preview(template_id, item, title, footer_text):
 # 전단지 미리보기 생성 (여러 품목)
 def create_flyer_preview(template_id, items, title, footer_text):
     width, height = 595, 842  # A4 크기 (72dpi)
-    img = Image.new("RGB", (width, height), "white")
+    img    img = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(img)
     font = ImageFont.truetype(font_path, 20)
     small_font = ImageFont.truetype(font_path, 12)
@@ -371,3 +371,4 @@ def main():
     conn.close()
 
 if __name__ == "__main__":
+    main()
