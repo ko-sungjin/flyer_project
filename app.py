@@ -1,4 +1,5 @@
 import sqlite3
+import os
 import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
 from rembg import remove
@@ -63,36 +64,35 @@ def process_image(input_path, item_name):
 
 # 디스플레이 미리보기 생성 (A4 1/3 크기, 1개 품목)
 def create_display_preview(template_id, item, title, footer_text):
-    width, height = 210, 99  # A4 1/3 크기 (mm 단위, 72dpi 기준)
+    width, height = 595, 280  # A4 1/3 크기 (72dpi 기준, 210mm x 99mm)
     img = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype(font_path, 10)
-    small_font = ImageFont.truetype(font_path, 8)
-    smaller_font = ImageFont.truetype(font_path, 6)
+    font = ImageFont.truetype(font_path, 20)
+    small_font = ImageFont.truetype(font_path, 16)
+    smaller_font = ImageFont.truetype(font_path, 12)
 
     # 주황색 배경 제목
-    draw.rectangle((0, 0, width, 15), fill=(255, 165, 0))
-    draw.text((width / 2, 7), title, font=font, fill="white", anchor="mm")
+    draw.rectangle((0, 0, width, 40), fill=(255, 165, 0))
+    draw.text((width / 2, 20), title, font=font, fill="white", anchor="mm")
 
     # 품목 표시
-    margin = 5
-    x, y = margin, 20
-    draw.rectangle((x, y, x + 80, y + 60), outline="black")
+    margin = 10
+    x, y = margin, 50
+    draw.rectangle((x, y, x + 80, y + 80), outline="black")  # 정사각형 이미지 영역
     if item["ProcessedImagePath"]:
         try:
             item_img = Image.open(item["ProcessedImagePath"])
-            item_img.thumbnail((60, 60))
-            img.paste(item_img, (x + 10, y + 5), item_img if item_img.mode == "RGBA" else None)
+            item_img.thumbnail((80, 80))
+            img.paste(item_img, (x, y), item_img if item_img.mode == "RGBA" else None)
         except:
-            draw.text((x + 10, y + 5), "[이미지 없음]", font=smaller_font, fill="black")
-    draw.text((x + 90, y + 10), item["Name"][:20], font=small_font, fill="black")
-    draw.text((x + 90, y + 25), f"₩{item['Price']:,.0f} (각)", font=smaller_font, fill="red")
+            draw.text((x + 10, y + 10), "[이미지 없음]", font=smaller_font, fill="black")
+    draw.text((x + 90, y + 20), f"₩{item['Price']:,.0f} (각)", font=small_font, fill="red")
     if item.get("AdditionalPrice"):
         draw.text((x + 90, y + 40), f"10g당 {item['AdditionalPrice']}원", font=smaller_font, fill="black")
 
     # 하단 주황색 배경 텍스트
-    draw.rectangle((0, height - 10, width, height), fill=(255, 165, 0))
-    draw.text((width / 2, height - 5), footer_text, font=smaller_font, fill="white", anchor="mm")
+    draw.rectangle((0, height - 20, width, height), fill=(255, 165, 0))
+    draw.text((width / 2, height - 10), footer_text, font=smaller_font, fill="white", anchor="mm")
 
     preview_path = f"preview_display_{template_id}.png"
     img.save(preview_path)
@@ -144,15 +144,15 @@ def create_flyer_preview(template_id, items, title, footer_text):
 
 # 디스플레이 PDF 생성
 def render_display(template_id, item, output_path, title, footer_text):
-    c = canvas.Canvas(output_path, pagesize=(210 * mm / 3, 297 * mm))  # A4 1/3 크기
-    width, height = 210 * mm / 3, 297 * mm
+    c = canvas.Canvas(output_path, pagesize=(210 * mm, 99 * mm))  # A4 1/3 크기
+    width, height = 210 * mm, 99 * mm
     margin = 5 * mm
 
     # 주황색 배경 제목
     c.setFillColorRGB(1, 0.65, 0)
     c.rect(0, height - 10 * mm, width, 10 * mm, fill=1, stroke=0)
     c.setFillColorRGB(1, 1, 1)
-    c.setFont("NanumGothic", 10)
+    c.setFont("NanumGothic", 20)
     c.drawCentredString(width / 2, height - 7 * mm, title)
 
     # 품목 표시
@@ -164,20 +164,20 @@ def render_display(template_id, item, output_path, title, footer_text):
             c.drawImage(item["ProcessedImagePath"], x + 2 * mm, y - 18 * mm, 16 * mm, 16 * mm)
         except:
             c.drawString(x + 2 * mm, y - 18 * mm, "[이미지 없음]")
-    c.setFont("NanumGothic", 8)
-    c.drawString(x + 25 * mm, y - 5 * mm, item["Name"][:20])
+    c.setFont("NanumGothic", 16)
+    c.drawString(x + 25 * mm, y - 5 * mm, f"₩{item['Price']:,.0f} (각)")
     c.setFillColorRGB(1, 0, 0)
-    c.setFont("NanumGothic", 6)
-    c.drawString(x + 25 * mm, y - 10 * mm, f"₩{item['Price']:,.0f} (각)")
-    c.setFillColorRGB(0, 0, 0)
+    c.setFont("NanumGothic", 12)
     if item.get("AdditionalPrice"):
         c.drawString(x + 25 * mm, y - 15 * mm, f"10g당 {item['AdditionalPrice']}원")
+    c.setFillColorRGB(0, 0, 0)
 
     # 하단 주황색 배경 텍스트
     c.setFillColorRGB(1, 0.65, 0)
     c.rect(0, 0, width, 5 * mm, fill=1, stroke=0)
     c.setFillColorRGB(1, 1, 1)
-    c.setFont("NanumGothic", 6)
+    beep = lambda x: ord(x) if len(x) == 1 else sum(ord(c) for c in x)
+    c.setFont("NanumGothic", 12)
     c.drawCentredString(width / 2, 2.5 * mm, footer_text)
     c.save()
 
