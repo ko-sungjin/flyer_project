@@ -1,6 +1,7 @@
 import sqlite3
 import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
+from rembg import remove
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
@@ -13,11 +14,23 @@ import streamlit as st
 pdfmetrics.registerFont(TTFont("NanumGothic", "NanumGothic.ttf"))
 font_path = "NanumGothic.ttf"
 
-# 엑셀 파일에서 데이터 읽기
+# 엑셀 파일에서 데이터 읽기 (열 이름 디버깅 추가)
 def fetch_pos_data():
-    df = pd.read_excel("items.xlsx")
-    items = df.to_dict("records")
-    return items
+    try:
+        df = pd.read_excel("items.xlsx")
+        expected_columns = ["Name", "Price"]
+        optional_columns = ["AdditionalPrice"]
+        missing_columns = [col for col in expected_columns if col not in df.columns]
+        if missing_columns:
+            st.error(f"엑셀 파일에 다음 필수 열이 누락되었습니다: {missing_columns}")
+            return []
+        # 열 이름 확인 및 디버깅 출력
+        st.write("엑셀 파일 열 이름:", df.columns.tolist())
+        items = df.to_dict("records")
+        return items
+    except Exception as e:
+        st.error(f"엑셀 파일 읽기 오류: {str(e)}")
+        return []
 
 # 로컬 이미지 확인
 def get_local_image(item_name):
@@ -236,14 +249,20 @@ def main():
     # 품목 동기화
     st.header("품목 동기화 (포스기 API)")
     if st.button("API 데이터 가져오기"):
-        items = fetch_pos_data()
-        for item in items:
-            image_path = get_local_image(item["Name"])
-            processed_path = process_image(image_path, item["Name"])
-            c.execute("INSERT OR REPLACE INTO Products (Name, Price, AdditionalPrice, ImagePath, ProcessedImagePath) VALUES (?, ?, ?, ?, ?)",
-                      (item["Name"], item["Price"], item.get("AdditionalPrice", ""), image_path, processed_path))
-        conn.commit()
-        st.success("데이터 동기화 완료")
+        try:
+            items = fetch_pos_data()
+            if not items:
+                st.warning("엑셀 파일에서 데이터를 읽지 못했습니다.")
+                return
+            for item in items:
+                image_path = get_local_image(item["Name"])
+                processed_path = process_image(image_path, item["Name"])
+                c.execute("INSERT OR REPLACE INTO Products (Name, Price, AdditionalPrice, ImagePath, ProcessedImagePath) VALUES (?, ?, ?, ?, ?)",
+                          (item["Name"], item["Price"], item.get("AdditionalPrice", ""), image_path, processed_path))
+            conn.commit()
+            st.success("데이터 동기화 완료")
+        except Exception as e:
+            st.error(f"데이터 동기화 오류: {str(e)}")
 
     # 품목 목록 및 선택
     st.header("품목 목록")
