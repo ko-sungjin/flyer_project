@@ -15,6 +15,54 @@ import streamlit as st
 pdfmetrics.registerFont(TTFont("NanumGothic", "NanumGothic.ttf"))
 font_path = "NanumGothic.ttf"
 
+# CSS 스타일링
+st.markdown("""
+<style>
+    .main-title {
+        color: #FF5733;
+        font-size: 36px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .section-header {
+        color: #333;
+        font-size: 24px;
+        font-weight: bold;
+        margin-top: 20px;
+        margin-bottom: 10px;
+    }
+    .stButton > button {
+        background-color: #FF5733;
+        color: white;
+        border-radius: 5px;
+        padding: 10px 20px;
+        font-size: 16px;
+        border: none;
+        margin: 5px;
+    }
+    .stButton > button:hover {
+        background-color: #C70039;
+    }
+    .stSelectbox, .stTextInput, .stMultiselect {
+        background-color: #f0f0f0;
+        border-radius: 5px;
+        padding: 5px;
+    }
+    .stImage {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 5px;
+    }
+    .stWarning, .stSuccess, .stError {
+        background-color: #f9f9f9;
+        border-radius: 5px;
+        padding: 10px;
+        margin: 10px 0;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # 엑셀 파일에서 데이터 읽기 (열 이름 디버깅 추가)
 def fetch_pos_data():
     try:
@@ -78,7 +126,7 @@ def create_display_preview(template_id, item, title, footer_text):
     # 품목 표시
     margin = 10
     x, y = margin, 50
-    draw.rectangle((x, y, x + 80, y + 80), outline="black")  # 정사각형 이미지 영역
+    draw.rectangle((x, y, x + 80, y + 80), outline="black")
     if item["ProcessedImagePath"]:
         try:
             item_img = Image.open(item["ProcessedImagePath"])
@@ -176,7 +224,6 @@ def render_display(template_id, item, output_path, title, footer_text):
     c.setFillColorRGB(1, 0.65, 0)
     c.rect(0, 0, width, 5 * mm, fill=1, stroke=0)
     c.setFillColorRGB(1, 1, 1)
-    beep = lambda x: ord(x) if len(x) == 1 else sum(ord(c) for c in x)
     c.setFont("NanumGothic", 12)
     c.drawCentredString(width / 2, 2.5 * mm, footer_text)
     c.save()
@@ -229,7 +276,7 @@ def render_flyer(template_id, items, output_path, title, footer_text):
 
 # Streamlit UI
 def main():
-    st.title("전단지 제작 시스템")
+    st.markdown('<div class="main-title">전단지 제작 시스템</div>', unsafe_allow_html=True)
 
     conn = sqlite3.connect("products.db")
     c = conn.cursor()
@@ -247,7 +294,7 @@ def main():
     conn.commit()
 
     # 품목 동기화
-    st.header("품목 동기화 (포스기 API)")
+    st.markdown('<div class="section-header">품목 동기화 (포스기 API)</div>', unsafe_allow_html=True)
     if st.button("API 데이터 가져오기"):
         try:
             items = fetch_pos_data()
@@ -265,16 +312,18 @@ def main():
             st.error(f"데이터 동기화 오류: {str(e)}")
 
     # 품목 목록 및 선택
-    st.header("품목 목록")
+    st.markdown('<div class="section-header">품목 목록</div>', unsafe_allow_html=True)
     c.execute("SELECT * FROM Products")
     items = [{"Name": row[1], "Price": row[2], "AdditionalPrice": row[3], "ProcessedImagePath": row[4]} for row in c.fetchall()]
     item_names = [item["Name"] for item in items]
     selected_items = st.multiselect("출력할 품목 선택", item_names, default=item_names)
 
     # 출력 모델 선택
+    st.markdown('<div class="section-header">출력 모델 선택</div>', unsafe_allow_html=True)
     model = st.selectbox("출력 모델 선택", ["디스플레이 (1개 품목)", "전단지 (여러 품목)"])
 
     # 템플릿 선택
+    st.markdown('<div class="section-header">템플릿 선택</div>', unsafe_allow_html=True)
     template = st.selectbox("템플릿 선택", [
         "1번 템플릿",
         "2번 템플릿",
@@ -285,6 +334,7 @@ def main():
     template_id = template.split("번")[0]
 
     # 제목 및 하단 텍스트 설정
+    st.markdown('<div class="section-header">제목 및 하단 텍스트 설정</div>', unsafe_allow_html=True)
     title = st.text_input("제목 입력", "가겨운 가구로 품질은 제대로 가격역주행")
     footer_text = st.text_input("하단 텍스트 입력", "행사기간: 5/20(화) - 기획상품 재고소진시종료")
 
@@ -301,7 +351,7 @@ def main():
                     output_path = f"display_{item['Name']}.pdf"
                     render_display(template_id, item, output_path, title, footer_text)
                     with open(output_path, "rb") as f:
-                        st.download_button(f"PDF 다운로드: {item['Name']}", f, file_name=output_path, key=f"download_button_{item['Name']}")
+                        st.download_button(f"PDF 다운로드: {item['Name']}", f, file_name=output_path, key=f"download_display_{item['Name']}")
         else:
             st.warning("품목을 선택해주세요.")
 
@@ -321,4 +371,3 @@ def main():
     conn.close()
 
 if __name__ == "__main__":
-    main()
