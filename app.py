@@ -291,13 +291,12 @@ def main():
     # 선택된 품목 필터링
     selected_items_data = [item for item in items if item["Name"] in selected_items]
 
-    if model == "디스플레이 (1개 품목)":
+   if model == "디스플레이 (1개 품목)":
     if selected_items_data:
         for item in selected_items_data:
             st.subheader(f"디스플레이 미리보기: {item['Name']}")
             preview_path = create_display_preview(template_id, item, title, footer_text)
             st.image(preview_path, caption=f"디스플레이 {template_id} 미리보기")
-            # 고유한 key 추가
             if st.button(f"디스플레이 생성: {item['Name']}", key=f"display_button_{item['Name']}"):
                 output_path = f"display_{item['Name']}.pdf"
                 render_display(template_id, item, output_path, title, footer_text)
