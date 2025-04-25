@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
 from rembg import remove
 from reportlab.lib.pagesizes import A4
@@ -12,24 +13,15 @@ import streamlit as st
 
 # 나눔고딕 폰트 등록
 pdfmetrics.registerFont(TTFont("NanumGothic", "NanumGothic.ttf"))
-font_path = "NanumGothic.ttf"  # PIL용 폰트 경로
+font_path = "NanumGothic.ttf"
 
-# 포스기 API 가정 데이터
+# 엑셀 파일에서 데이터 읽기
 def fetch_pos_data():
-    return [
-        {"Name": "생수 500ml", "Price": 1000},
-        {"Name": "초콜릿 바", "Price": 2000},
-        {"Name": "감자칩 100g", "Price": 1500},
-        {"Name": "우유 1L", "Price": 3000},
-        {"Name": "라면 5봉", "Price": 4000},
-        {"Name": "커피 200ml", "Price": 1500},
-        {"Name": "비누 100g", "Price": 2000},
-        {"Name": "치약 100g", "Price": 2500},
-        {"Name": "샴푸 500ml", "Price": 5000},
-        {"Name": "세제 1L", "Price": 3500}
-    ]
+    df = pd.read_excel("items.xlsx")
+    items = df.to_dict("records")
+    return items
 
-# 로컬 이미지 확인 (수정됨)
+# 로컬 이미지 확인
 def get_local_image(item_name):
     mapping = {
         "생수 500ml": "water.png",
@@ -47,6 +39,7 @@ def get_local_image(item_name):
     if filename and os.path.exists(f"C:/flyer_project/images/{filename}"):
         return f"C:/flyer_project/images/{filename}"
     return None
+
 # 이미지 누끼 처리
 def process_image(input_path, item_name):
     if not input_path:
@@ -134,7 +127,7 @@ def render_template_1(items, output_path):
     c = canvas.Canvas(output_path, pagesize=A4)
     width, height = A4
     margin = 10 * mm
-    cell_width = (width - 2 * mm) / 4
+    cell_width = (width - 2 * margin) / 4
     cell_height = (height - 3 * margin) / 4
 
     c.setFont("NanumGothic", 20)
