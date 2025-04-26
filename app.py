@@ -11,11 +11,12 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import streamlit as st
 
-# 나눔고딕 폰트 등록
+# 폰트 등록
 pdfmetrics.registerFont(TTFont("NanumGothic", "NanumGothic.ttf"))
-font_path = "NanumGothic.ttf"
+pdfmetrics.registerFont(TTFont("NotoSansKR", "NotoSansKR-Regular.ttf"))
+pdfmetrics.registerFont(TTFont("Roboto", "Roboto-Regular.ttf"))
 
-# CSS 스타일링
+# Streamlit UI 스타일링
 st.markdown("""
 <style>
     .main-title {
@@ -24,6 +25,7 @@ st.markdown("""
         font-weight: bold;
         text-align: center;
         margin-bottom: 20px;
+        font-family: 'NotoSansKR';
     }
     .section-header {
         color: #333;
@@ -31,39 +33,50 @@ st.markdown("""
         font-weight: bold;
         margin-top: 20px;
         margin-bottom: 10px;
+        font-family: 'Roboto';
     }
     .stButton > button {
         background-color: #FF5733;
         color: white;
-        border-radius: 5px;
-        padding: 10px 20px;
+        border-radius: 8px;
+        padding: 12px 24px;
         font-size: 16px;
         border: none;
         margin: 5px;
+        font-family: 'NanumGothic';
     }
     .stButton > button:hover {
         background-color: #C70039;
     }
     .stSelectbox, .stTextInput, .stMultiselect {
-        background-color: #f0f0f0;
-        border-radius: 5px;
-        padding: 5px;
+        background-color: #f9f9f9;
+        border-radius: 8px;
+        padding: 8px;
+        font-family: 'NotoSansKR';
     }
     .stImage {
-        border: 1px solid #ddd;
-        border-radius: 5px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
         padding: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     .stWarning, .stSuccess, .stError {
-        background-color: #f9f9f9;
-        border-radius: 5px;
-        padding: 10px;
+        background-color: #f0f0f0;
+        border-radius: 8px;
+        padding: 12px;
         margin: 10px 0;
+        font-family: 'NanumGothic';
+    }
+    .expander-content {
+        background-color: #f9f9f9;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# 엑셀 파일에서 데이터 읽기 (열 이름 디버깅 추가)
+# 엑셀 파일에서 데이터 읽기
 def fetch_pos_data():
     try:
         df = pd.read_excel("items.xlsx")
@@ -114,28 +127,42 @@ def create_display_preview(template_id, item, title, footer_text):
     width, height = 595, 280  # A4 1/3 크기 (72dpi 기준, 210mm x 99mm)
     img = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype(font_path, 20)
-    small_font = ImageFont.truetype(font_path, 16)
-    smaller_font = ImageFont.truetype(font_path, 12)
+    font = ImageFont.truetype("NotoSansKR-Regular.ttf", 20)
+    price_font = ImageFont.truetype("Roboto-Regular.ttf", 48)
+    small_font = ImageFont.truetype("NanumGothic.ttf", 16)
+    smaller_font = ImageFont.truetype("NanumGothic.ttf", 12)
 
     # 주황색 배경 제목
-    draw.rectangle((0, 0, width, 40), fill=(255, 165, 0))
-    draw.text((width / 2, 20), title, font=font, fill="white", anchor="mm")
+    draw.rectangle((0, 0, width, 60), fill=(255, 165, 0))
+    draw.text((width / 2, 30), title, font=font, fill="white", anchor="mm")
 
-    # 품목 표시
+    # 품목명
     margin = 10
-    x, y = margin, 50
-    draw.rectangle((x, y, x + 80, y + 80), outline="black")
+    x, y = margin, 70
+    draw.text((x, y), item["Name"], font=small_font, fill="black")
+
+    # 가격
+    y += 30
+    draw.text((x, y), f"₩{item['Price']:,.0f} (각)", font=price_font, fill="red")
+    if item.get("AdditionalPrice"):
+        y += 30
+        draw.text((x, y), f"10g당 {item['AdditionalPrice']}원", font=smaller_font, fill="black")
+
+    # 품목 이미지 (오른쪽에 5개 품목 이미지 표시)
     if item["ProcessedImagePath"]:
         try:
             item_img = Image.open(item["ProcessedImagePath"])
             item_img.thumbnail((80, 80))
-            img.paste(item_img, (x, y), item_img if item_img.mode == "RGBA" else None)
-        except:
-            draw.text((x + 10, y + 10), "[이미지 없음]", font=smaller_font, fill="black")
-    draw.text((x + 90, y + 20), f"₩{item['Price']:,.0f} (각)", font=small_font, fill="red")
-    if item.get("AdditionalPrice"):
-        draw.text((x + 90, y + 40), f"10g당 {item['AdditionalPrice']}원", font=smaller_font, fill="black")
+            img.paste(item_img, (width - 90, 70), item_img if item_img.mode == "RGBA" else None)
+            # 추가적으로 4개 이미지를 더미로 배치 (시안처럼 5개 품목 이미지)
+            for i in range(4):
+                img.paste(item_img, (width - 90 - (i + 1) * 90, 70), item_img if item_img.mode == "RGBA" else None)
+        except Exception as e:
+            st.error(f"이미지 로드 오류: {str(e)}")
+            draw.text((width - 90, 70), "[이미지 없음]", font=smaller_font, fill="black")
+    else:
+        st.warning(f"{item['Name']}의 이미지가 없습니다.")
+        draw.text((width - 90, 70), "[이미지 없음]", font=smaller_font, fill="black")
 
     # 하단 주황색 배경 텍스트
     draw.rectangle((0, height - 20, width, height), fill=(255, 165, 0))
@@ -145,14 +172,61 @@ def create_display_preview(template_id, item, title, footer_text):
     img.save(preview_path)
     return preview_path
 
+# 디스플레이 PDF 생성
+def render_display(template_id, item, output_path, title, footer_text):
+    c = canvas.Canvas(output_path, pagesize=(210 * mm, 99 * mm))
+    width, height = 210 * mm, 99 * mm
+    margin = 5 * mm
+
+    # 주황색 배경 제목
+    c.setFillColorRGB(1, 0.65, 0)
+    c.rect(0, height - 10 * mm, width, 10 * mm, fill=1, stroke=0)
+    c.setFillColorRGB(1, 1, 1)
+    c.setFont("NotoSansKR", 20)
+    c.drawCentredString(width / 2, height - 7 * mm, title)
+
+    # 품목명
+    x, y = margin, height - 20 * mm
+    c.setFont("NanumGothic", 16)
+    c.drawString(x, y, item["Name"])
+
+    # 가격
+    y -= 10 * mm
+    c.setFillColorRGB(1, 0, 0)
+    c.setFont("Roboto", 48)
+    c.drawString(x, y, f"₩{item['Price']:,.0f} (각)")
+    c.setFillColorRGB(0, 0, 0)
+    if item.get("AdditionalPrice"):
+        y -= 10 * mm
+        c.setFont("NanumGothic", 12)
+        c.drawString(x, y, f"10g당 {item['AdditionalPrice']}원")
+
+    # 품목 이미지 (오른쪽에 5개 품목 이미지 표시)
+    if item["ProcessedImagePath"]:
+        try:
+            c.drawImage(item["ProcessedImagePath"], width - 25 * mm, height - 25 * mm, 20 * mm, 20 * mm)
+            # 추가적으로 4개 이미지를 더미로 배치
+            for i in range(4):
+                c.drawImage(item["ProcessedImagePath"], width - 25 * mm - (i + 1) * 25 * mm, height - 25 * mm, 20 * mm, 20 * mm)
+        except:
+            c.drawString(width - 25 * mm, height - 25 * mm, "[이미지 없음]")
+
+    # 하단 주황색 배경 텍스트
+    c.setFillColorRGB(1, 0.65, 0)
+    c.rect(0, 0, width, 5 * mm, fill=1, stroke=0)
+    c.setFillColorRGB(1, 1, 1)
+    c.setFont("NanumGothic", 12)
+    c.drawCentredString(width / 2, 2.5 * mm, footer_text)
+    c.save()
+
 # 전단지 미리보기 생성 (여러 품목)
 def create_flyer_preview(template_id, items, title, footer_text):
     width, height = 595, 842  # A4 크기 (72dpi)
     img = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype(font_path, 20)
-    small_font = ImageFont.truetype(font_path, 12)
-    smaller_font = ImageFont.truetype(font_path, 10)
+    font = ImageFont.truetype("NotoSansKR-Regular.ttf", 20)
+    small_font = ImageFont.truetype("Roboto-Regular.ttf", 12)
+    smaller_font = ImageFont.truetype("NanumGothic.ttf", 10)
 
     # 주황색 배경 제목
     draw.rectangle((0, 0, width, 50), fill=(255, 165, 0))
@@ -189,44 +263,6 @@ def create_flyer_preview(template_id, items, title, footer_text):
     img.save(preview_path)
     return preview_path
 
-# 디스플레이 PDF 생성
-def render_display(template_id, item, output_path, title, footer_text):
-    c = canvas.Canvas(output_path, pagesize=(210 * mm, 99 * mm))  # A4 1/3 크기
-    width, height = 210 * mm, 99 * mm
-    margin = 5 * mm
-
-    # 주황색 배경 제목
-    c.setFillColorRGB(1, 0.65, 0)
-    c.rect(0, height - 10 * mm, width, 10 * mm, fill=1, stroke=0)
-    c.setFillColorRGB(1, 1, 1)
-    c.setFont("NanumGothic", 20)
-    c.drawCentredString(width / 2, height - 7 * mm, title)
-
-    # 품목 표시
-    x, y = margin, height - 20 * mm
-    c.setStrokeColor(colors.black)
-    c.rect(x, y - 20 * mm, 20 * mm, 20 * mm)
-    if item["ProcessedImagePath"]:
-        try:
-            c.drawImage(item["ProcessedImagePath"], x + 2 * mm, y - 18 * mm, 16 * mm, 16 * mm)
-        except:
-            c.drawString(x + 2 * mm, y - 18 * mm, "[이미지 없음]")
-    c.setFont("NanumGothic", 16)
-    c.drawString(x + 25 * mm, y - 5 * mm, f"₩{item['Price']:,.0f} (각)")
-    c.setFillColorRGB(1, 0, 0)
-    c.setFont("NanumGothic", 12)
-    if item.get("AdditionalPrice"):
-        c.drawString(x + 25 * mm, y - 15 * mm, f"10g당 {item['AdditionalPrice']}원")
-    c.setFillColorRGB(0, 0, 0)
-
-    # 하단 주황색 배경 텍스트
-    c.setFillColorRGB(1, 0.65, 0)
-    c.rect(0, 0, width, 5 * mm, fill=1, stroke=0)
-    c.setFillColorRGB(1, 1, 1)
-    c.setFont("NanumGothic", 12)
-    c.drawCentredString(width / 2, 2.5 * mm, footer_text)
-    c.save()
-
 # 전단지 PDF 생성
 def render_flyer(template_id, items, output_path, title, footer_text):
     c = canvas.Canvas(output_path, pagesize=A4)
@@ -239,7 +275,7 @@ def render_flyer(template_id, items, output_path, title, footer_text):
     c.setFillColorRGB(1, 0.65, 0)
     c.rect(0, height - 15 * mm, width, 15 * mm, fill=1, stroke=0)
     c.setFillColorRGB(1, 1, 1)
-    c.setFont("NanumGothic", 20)
+    c.setFont("NotoSansKR", 20)
     c.drawCentredString(width / 2, height - 12 * mm, title)
 
     if template_id == "1":
@@ -252,7 +288,7 @@ def render_flyer(template_id, items, output_path, title, footer_text):
                     c.drawImage(item["ProcessedImagePath"], x + 5 * mm, y - 15 * mm, 25 * mm, 25 * mm)
                 except:
                     c.drawString(x + 5 * mm, y - 15 * mm, "[이미지 없음]")
-            c.setFont("NanumGothic", 12)
+            c.setFont("Roboto", 12)
             c.drawString(x + 5 * mm, y - 25 * mm, item["Name"][:20])
             c.setFillColorRGB(1, 0, 0)
             c.setFont("NanumGothic", 10)
@@ -292,80 +328,113 @@ def main():
     )""")
     conn.commit()
 
-    # 품목 동기화
-    st.markdown('<div class="section-header">품목 동기화 (포스기 API)</div>', unsafe_allow_html=True)
-    if st.button("API 데이터 가져오기"):
-        try:
-            items = fetch_pos_data()
-            if not items:
-                st.warning("엑셀 파일에서 데이터를 읽지 못했습니다.")
-                return
-            for item in items:
-                image_path = get_local_image(item["Name"])
-                processed_path = process_image(image_path, item["Name"])
-                c.execute("INSERT OR REPLACE INTO Products (Name, Price, AdditionalPrice, ImagePath, ProcessedImagePath) VALUES (?, ?, ?, ?, ?)",
-                          (item["Name"], item["Price"], item.get("AdditionalPrice", ""), image_path, processed_path))
-            conn.commit()
-            st.success("데이터 동기화 완료")
-        except Exception as e:
-            st.error(f"데이터 동기화 오류: {str(e)}")
+    # 미리보기 섹션 추가
+    st.markdown('<div class="section-header">디스플레이 시안 미리보기</div>', unsafe_allow_html=True)
+    with st.expander("디스플레이 시안 확인", expanded=True):
+        # 임시 품목 데이터 (시안 기반)
+        temp_item = {
+            "Name": "CJ 명가 재래김/파래김 (20봉, 김 원산지 국산, 각)",
+            "Price": 5990,
+            "AdditionalPrice": "749",
+            "ProcessedImagePath": None  # 실제 이미지 없으므로 None으로 설정
+        }
+        title = "가겨운 가구로 품질은 제대로 가격역주행"
+        footer_text = "행사기간: 5/20(화) - 기획상품 재고소진시종료"
+        preview_path = create_display_preview("1", temp_item, title, footer_text)
+        st.image(preview_path, caption="디스플레이 시안 미리보기")
+
+    # 품목 동기화 섹션
+    with st.expander("품목 동기화 (포스기 API)", expanded=True):
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.markdown('<div class="section-header">데이터 동기화</div>', unsafe_allow_html=True)
+        with col2:
+            if st.button("API 데이터 가져오기", key="sync_button"):
+                try:
+                    items = fetch_pos_data()
+                    if not items:
+                        st.warning("엑셀 파일에서 데이터를 읽지 못했습니다.")
+                        return
+                    for item in items:
+                        image_path = get_local_image(item["Name"])
+                        processed_path = process_image(image_path, item["Name"])
+                        if not processed_path:
+                            st.warning(f"{item['Name']}의 이미지를 처리하지 못했습니다. image_path: {image_path}")
+                        c.execute("INSERT OR REPLACE INTO Products (Name, Price, AdditionalPrice, ImagePath, ProcessedImagePath) VALUES (?, ?, ?, ?, ?)",
+                                  (item["Name"], item["Price"], item.get("AdditionalPrice", ""), image_path, processed_path))
+                    conn.commit()
+                    st.success("데이터 동기화 완료")
+                except Exception as e:
+                    st.error(f"데이터 동기화 오류: {str(e)}")
 
     # 품목 목록 및 선택
-    st.markdown('<div class="section-header">품목 목록</div>', unsafe_allow_html=True)
-    c.execute("SELECT * FROM Products")
-    items = [{"Name": row[1], "Price": row[2], "AdditionalPrice": row[3], "ProcessedImagePath": row[4]} for row in c.fetchall()]
-    item_names = [item["Name"] for item in items]
-    selected_items = st.multiselect("출력할 품목 선택", item_names, default=item_names)
+    with st.expander("품목 목록", expanded=True):
+        st.markdown('<div class="section-header">등록된 품목</div>', unsafe_allow_html=True)
+        c.execute("SELECT * FROM Products")
+        items = [{"Name": row[1], "Price": row[2], "AdditionalPrice": row[3], "ProcessedImagePath": row[4]} for row in c.fetchall()]
+        item_names = [item["Name"] for item in items]
+        selected_items = st.multiselect("출력할 품목 선택", item_names, default=item_names)
 
-    # 출력 모델 선택
-    st.markdown('<div class="section-header">출력 모델 선택</div>', unsafe_allow_html=True)
-    model = st.selectbox("출력 모델 선택", ["디스플레이 (1개 품목)", "전단지 (여러 품목)"])
-
-    # 템플릿 선택
-    st.markdown('<div class="section-header">템플릿 선택</div>', unsafe_allow_html=True)
-    template = st.selectbox("템플릿 선택", [
-        "1번 템플릿",
-        "2번 템플릿",
-        "3번 템플릿",
-        "4번 템플릿",
-        "5번 템플릿"
-    ])
-    template_id = template.split("번")[0]
+    # 출력 모델 및 템플릿 선택
+    with st.expander("출력 설정", expanded=True):
+        st.markdown('<div class="section-header">출력 모델 및 템플릿</div>', unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            model = st.selectbox("출력 모델 선택", ["디스플레이 (1개 품목)", "전단지 (여러 품목)"])
+        with col2:
+            template = st.selectbox("템플릿 선택", [
+                "1번 템플릿",
+                "2번 템플릿",
+                "3번 템플릿",
+                "4번 템플릿",
+                "5번 템플릿"
+            ])
+        template_id = template.split("번")[0]
 
     # 제목 및 하단 텍스트 설정
-    st.markdown('<div class="section-header">제목 및 하단 텍스트 설정</div>', unsafe_allow_html=True)
-    title = st.text_input("제목 입력", "가겨운 가구로 품질은 제대로 가격역주행")
-    footer_text = st.text_input("하단 텍스트 입력", "행사기간: 5/20(화) - 기획상품 재고소진시종료")
+    with st.expander("제목 및 하단 텍스트 설정", expanded=True):
+        st.markdown('<div class="section-header">텍스트 설정</div>', unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            title = st.text_input("제목 입력", "가겨운 가구로 품질은 제대로 가격역주행")
+        with col2:
+            footer_text = st.text_input("하단 텍스트 입력", "행사기간: 5/20(화) - 기획상품 재고소진시종료")
 
     # 선택된 품목 필터링
     selected_items_data = [item for item in items if item["Name"] in selected_items]
 
-    if model == "디스플레이 (1개 품목)":
-        if selected_items_data:
-            for idx, item in enumerate(selected_items_data):
-                st.subheader(f"디스플레이 미리보기: {item['Name']}")
-                preview_path = create_display_preview(template_id, item, title, footer_text)
-                st.image(preview_path, caption=f"디스플레이 {template_id} 미리보기")
-                if st.button(f"디스플레이 생성: {item['Name']}", key=f"display_button_{item['Name']}_{idx}"):
-                    output_path = f"display_{item['Name']}.pdf"
-                    render_display(template_id, item, output_path, title, footer_text)
-                    with open(output_path, "rb") as f:
-                        st.download_button(f"PDF 다운로드: {item['Name']}", f, file_name=output_path, key=f"download_display_{item['Name']}_{idx}")
-        else:
-            st.warning("품목을 선택해주세요.")
+    # 출력물 생성
+    with st.expander("출력물 미리보기 및 생성", expanded=True):
+        if model == "디스플레이 (1개 품목)":
+            if selected_items_data:
+                for idx, item in enumerate(selected_items_data):
+                    st.subheader(f"디스플레이 미리보기: {item['Name']}")
+                    preview_path = create_display_preview(template_id, item, title, footer_text)
+                    st.image(preview_path, caption=f"디스플레이 {template_id} 미리보기")
+                    col1, col2 = st.columns([1, 1])
+                    with col1:
+                        if st.button(f"디스플레이 생성: {item['Name']}", key=f"display_button_{item['Name']}_{idx}"):
+                            output_path = f"display_{item['Name']}.pdf"
+                            render_display(template_id, item, output_path, title, footer_text)
+                            with open(output_path, "rb") as f:
+                                st.download_button(f"PDF 다운로드: {item['Name']}", f, file_name=output_path, key=f"download_display_{item['Name']}_{idx}")
+            else:
+                st.warning("품목을 선택해주세요.")
 
-    else:  # 전단지 (여러 품목)
-        if selected_items_data:
-            st.subheader("전단지 미리보기")
-            preview_path = create_flyer_preview(template_id, selected_items_data, title, footer_text)
-            st.image(preview_path, caption=f"전단지 {template_id} 미리보기")
-            if st.button("전단지 생성", key="flyer_generate"):
-                output_path = f"flyer_{template_id}.pdf"
-                render_flyer(template_id, selected_items_data, output_path, title, footer_text)
-                with open(output_path, "rb") as f:
-                    st.download_button("PDF 다운로드", f, file_name=output_path, key="flyer_download")
-        else:
-            st.warning("품목을 선택해주세요.")
+        else:  # 전단지 (여러 품목)
+            if selected_items_data:
+                st.subheader("전단지 미리보기")
+                preview_path = create_flyer_preview(template_id, selected_items_data, title, footer_text)
+                st.image(preview_path, caption=f"전단지 {template_id} 미리보기")
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    if st.button("전단지 생성", key="flyer_generate"):
+                        output_path = f"flyer_{template_id}.pdf"
+                        render_flyer(template_id, selected_items_data, output_path, title, footer_text)
+                        with open(output_path, "rb") as f:
+                            st.download_button("PDF 다운로드", f, file_name=output_path, key="flyer_download")
+            else:
+                st.warning("품목을 선택해주세요.")
 
     conn.close()
 
