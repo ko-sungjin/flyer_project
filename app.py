@@ -73,7 +73,6 @@ def fetch_pos_data():
         if missing_columns:
             st.error(f"엑셀 파일에 다음 필수 열이 누락되었습니다: {missing_columns}")
             return []
-        # 열 이름 확인 및 디버깅 출력
         st.write("엑셀 파일 열 이름:", df.columns.tolist())
         items = df.to_dict("records")
         return items
@@ -343,15 +342,15 @@ def main():
 
     if model == "디스플레이 (1개 품목)":
         if selected_items_data:
-            for item in selected_items_data:
+            for idx, item in enumerate(selected_items_data):
                 st.subheader(f"디스플레이 미리보기: {item['Name']}")
                 preview_path = create_display_preview(template_id, item, title, footer_text)
                 st.image(preview_path, caption=f"디스플레이 {template_id} 미리보기")
-                if st.button(f"디스플레이 생성: {item['Name']}", key=f"display_button_{item['Name']}"):
+                if st.button(f"디스플레이 생성: {item['Name']}", key=f"display_button_{item['Name']}_{idx}"):
                     output_path = f"display_{item['Name']}.pdf"
                     render_display(template_id, item, output_path, title, footer_text)
                     with open(output_path, "rb") as f:
-                        st.download_button(f"PDF 다운로드: {item['Name']}", f, file_name=output_path, key=f"download_display_{item['Name']}")
+                        st.download_button(f"PDF 다운로드: {item['Name']}", f, file_name=output_path, key=f"download_display_{item['Name']}_{idx}")
         else:
             st.warning("품목을 선택해주세요.")
 
@@ -360,11 +359,11 @@ def main():
             st.subheader("전단지 미리보기")
             preview_path = create_flyer_preview(template_id, selected_items_data, title, footer_text)
             st.image(preview_path, caption=f"전단지 {template_id} 미리보기")
-            if st.button("전단지 생성"):
+            if st.button("전단지 생성", key="flyer_generate"):
                 output_path = f"flyer_{template_id}.pdf"
                 render_flyer(template_id, selected_items_data, output_path, title, footer_text)
                 with open(output_path, "rb") as f:
-                    st.download_button("PDF 다운로드", f, file_name=output_path)
+                    st.download_button("PDF 다운로드", f, file_name=output_path, key="flyer_download")
         else:
             st.warning("품목을 선택해주세요.")
 
