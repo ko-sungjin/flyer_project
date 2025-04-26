@@ -3,3 +3,4 @@ streamlit
 pillow
 rembg
 onnxruntime
+openpyxl==3.0.10
